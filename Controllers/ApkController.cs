@@ -12,6 +12,8 @@ namespace meitubikanSite.Controllers
     {
         private static ApkModel ApkModel = new ApkModel();
 
+        private const long BaseDownload = 74228;
+
         public JsonResult GetTotalDownload()
         {
             string source = string.IsNullOrWhiteSpace(Request["form"]) ? string.Empty : Request["form"];
@@ -24,8 +26,7 @@ namespace meitubikanSite.Controllers
             }
             else
             {
-                // TODO: get total download from all sources.
-                data.Add("TotalDownload", 0);
+                data.Add("TotalDownload", BaseDownload + ApkModel.GetTotalDownload("ucresultpage") + ApkModel.GetTotalDownload("uclandingpage") + ApkModel.GetTotalDownload("ucdetailpage"));
             }
 
             return this.Json(data, JsonRequestBehavior.AllowGet);
@@ -48,5 +49,23 @@ namespace meitubikanSite.Controllers
             
             return File(ApkModel.GetApkFromBlob().ToArray(), "application/vnd.android.package-archive", "MeiTuBiKan.apk");
         }
+
+        public ActionResult AddOneMoreApkDownloadChs()
+        {
+            string source = string.IsNullOrWhiteSpace(Request["channel"]) ? string.Empty : Request["channel"];
+            source = source.ToLower().Trim();
+
+            if (!string.IsNullOrEmpty(source))
+            {
+                ApkModel.AddOneMoreApkDownload(source);
+            }
+            else
+            {
+                ApkModel.AddOneMoreApkDownload("unknown");
+            }
+
+            return File(ApkModel.GetApkFromBlob().ToArray(), "application/vnd.android.package-archive", "%E7%BE%8E%E5%9B%BE%E5%BF%85%E7%9C%8B.apk");
+        }
+
     }
 }
