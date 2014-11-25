@@ -9,24 +9,11 @@ namespace meitubikanSite.Models
 {
     public class ApkModel
     {
-        public static readonly string ApkDownloadTableName = "ApkDownload";
-        public static readonly string ApkDownloadStatsTableName = "ApkDownloadStats";
-        public static readonly string ApkContainerName = "app";
-        public static readonly string ApkFileName = "meitubikan.apk";
-
-        // *** Helper functions ***
-        // Event id by time and random value
-        private string CreateEventId()
-        {
-            return "E" + DateTime.UtcNow.ToString("yyyyMMddHHmmssfff")
-                + "R" + (new Random()).Next(999999).ToString("000000");
-        }
-
         // *** Business related functions ***
         // Add one more apk download
         public void AddOneMoreApkDownload(string source)
         {
-            string eventId = CreateEventId();
+            string eventId = StorageModel.CreateEventId();
             // Insert new apk download entity
             ApkDownloadEntity apkDownloadEntity = new ApkDownloadEntity(source, eventId);
             InsertApkDownloadEntity(apkDownloadEntity);
@@ -68,8 +55,8 @@ namespace meitubikanSite.Models
         public MemoryStream GetApkFromBlob()
         {
             MemoryStream ms = new MemoryStream();
-            StorageModel.GetBlobContainer(ApkModel.ApkContainerName)
-                            .GetBlockBlobReference(ApkModel.ApkFileName)
+            StorageModel.GetBlobContainer(StorageModel.ApkContainerName)
+                            .GetBlockBlobReference(StorageModel.ApkFileName)
                             .DownloadToStream(ms);
             return ms;
         }
@@ -78,7 +65,7 @@ namespace meitubikanSite.Models
         // Select
         private ApkDownloadEntity GetApkDownloadEntity(string partitionKey, string rowKey)
         {
-            TableResult res = StorageModel.GetTable(ApkModel.ApkDownloadTableName)
+            TableResult res = StorageModel.GetTable(StorageModel.ApkDownloadTableName)
                                           .Execute(TableOperation.Retrieve<ApkDownloadEntity>(partitionKey, rowKey));
 
             return (null != res.Result) ? (ApkDownloadEntity)res.Result : null;
@@ -89,13 +76,13 @@ namespace meitubikanSite.Models
             TableQuery<ApkDownloadEntity> query = new TableQuery<ApkDownloadEntity>()
                 .Where(TableQuery.GenerateFilterCondition("PartitionKey", QueryComparisons.Equal, pKey));
 
-            return StorageModel.GetTable(ApkModel.ApkDownloadTableName)
+            return StorageModel.GetTable(StorageModel.ApkDownloadTableName)
                                .ExecuteQuery(query).ToList<ApkDownloadEntity>();
         }
 
         private ApkDownloadStatsEntity GetApkDownloadStatsEntity(string partitionKey, string rowKey)
         {
-            TableResult res = StorageModel.GetTable(ApkModel.ApkDownloadTableName)
+            TableResult res = StorageModel.GetTable(StorageModel.ApkDownloadTableName)
                                           .Execute(TableOperation.Retrieve<ApkDownloadStatsEntity>(partitionKey, rowKey));
 
             return (null != res.Result) ? (ApkDownloadStatsEntity)res.Result : null;
@@ -106,7 +93,7 @@ namespace meitubikanSite.Models
             TableQuery<ApkDownloadStatsEntity> query = new TableQuery<ApkDownloadStatsEntity>()
                 .Where(TableQuery.GenerateFilterCondition("PartitionKey", QueryComparisons.Equal, pKey));
 
-            return StorageModel.GetTable(ApkModel.ApkDownloadStatsTableName)
+            return StorageModel.GetTable(StorageModel.ApkDownloadStatsTableName)
                                .ExecuteQuery(query).ToList<ApkDownloadStatsEntity>();
         }
 
@@ -115,39 +102,39 @@ namespace meitubikanSite.Models
         // Insert
         private void InsertApkDownloadEntity(ApkDownloadEntity entity)
         {
-            StorageModel.GetTable(ApkModel.ApkDownloadTableName)
+            StorageModel.GetTable(StorageModel.ApkDownloadTableName)
                         .Execute(TableOperation.Insert(entity));
         }
 
         private void InsertApkDownloadStatsEntity(ApkDownloadStatsEntity entity)
         {
-            StorageModel.GetTable(ApkModel.ApkDownloadStatsTableName)
+            StorageModel.GetTable(StorageModel.ApkDownloadStatsTableName)
                         .Execute(TableOperation.Insert(entity));
         }
 
         // Delete
         private void DeleteApkDownloadEntity(ApkDownloadEntity entity)
         {
-            StorageModel.GetTable(ApkModel.ApkDownloadTableName)
+            StorageModel.GetTable(StorageModel.ApkDownloadTableName)
                         .Execute(TableOperation.Delete(entity));
         }
 
         private void DeleteApkDownloadStatsEntity(ApkDownloadStatsEntity entity)
         {
-            StorageModel.GetTable(ApkModel.ApkDownloadStatsTableName)
+            StorageModel.GetTable(StorageModel.ApkDownloadStatsTableName)
                         .Execute(TableOperation.Delete(entity));
         }
 
         // Update
         private void UpdateApkDownloadEntity(ApkDownloadEntity entity)
         {
-            StorageModel.GetTable(ApkModel.ApkDownloadTableName)
+            StorageModel.GetTable(StorageModel.ApkDownloadTableName)
                         .Execute(TableOperation.Replace(entity));
         }
 
         private void UpdateApkDownloadStatsEntity(ApkDownloadStatsEntity entity)
         {
-            StorageModel.GetTable(ApkModel.ApkDownloadStatsTableName)
+            StorageModel.GetTable(StorageModel.ApkDownloadStatsTableName)
                         .Execute(TableOperation.Replace(entity));
         }
     }

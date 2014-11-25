@@ -2,27 +2,35 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Web;
 
 namespace meitubikanSite.Models
 {
     public class ImageModel
     {
-        // All letters in container name must be lowercase
-        public static readonly string ImageContainerName = "meitubikanimages";
-
-        public string SaveTagImage(string imageUrl, string blobfileName)
+        public string SaveImage(string encodedImageUrl)
         {
-            // TODO: crawl image file.
-            Stream imageFileStream = null;
-            using (imageFileStream)
+            try
             {
-                StorageModel.GetBlobContainer(ImageModel.ImageContainerName)
-                            .GetBlockBlobReference(blobfileName)
-                            .UploadFromStream(imageFileStream);
-            }
+                string decodedImageUrl = StorageModel.UrlDecode(encodedImageUrl);
+                HttpWebRequest imageRequest = (HttpWebRequest)WebRequest.Create(decodedImageUrl);
+                WebResponse imageResponse = imageRequest.GetResponse();
+                Stream imageFileStream = imageResponse.GetResponseStream();
 
-            return Path.Combine(StorageModel.GetBlobEndPoint(), ImageModel.ImageContainerName, blobfileName);
+                using (imageFileStream)
+                {
+                    var imageBlob = StorageModel.GetBlobContainer(StorageModel.ImageContainerName).GetBlockBlobReference(decodedImageUrl);
+                    imageBlob.UploadFromStream(imageFileStream);
+                    //imageBlob.Properties.ContentType = "image/jpeg";
+                }
+
+                return Path.Combine(StorageModel.GetBlobEndPoint(), StorageModel.ImageContainerName, decodedImageUrl);
+            }
+            catch (Exception)
+            {
+                return string.Empty;
+            }
         }
     }
 }
