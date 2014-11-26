@@ -26,6 +26,9 @@ namespace meitubikanSite.Models
         public static readonly string UserActionTableName = "UserAction";
         public static readonly string ImageStatsTableName = "ImageStats";
         public static readonly string ImageDailyStatsTableName = "ImageDailyStats";
+        public static readonly string UserSearchTableName = "UserSearch";
+        public static readonly string QueryStatsTableName = "QueryStats";
+        public static readonly string QueryDailyStatsTableName = "QueryDailyStats";
 
         // *** End of storage item name section ***
 

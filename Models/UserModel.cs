@@ -67,10 +67,10 @@ namespace meitubikanSite.Models
                 }
 
                 // Image daily stats
-                List<ImageDailyStatsEntity> imageDailyStatsEntityList = GetImageDailyStatsEntityByPartition(encodedUrl);
-                if (imageDailyStatsEntityList == null || imageDailyStatsEntityList.Count == 0)
+                ImageDailyStatsEntity imageDailyStatsEntity = GetImageDailyStatsEntity(encodedUrl, dailyDateStr);
+                if (imageDailyStatsEntity == null)
                 {
-                    ImageDailyStatsEntity imageDailyStatsEntity = new ImageDailyStatsEntity(encodedUrl, dailyDateStr);
+                    imageDailyStatsEntity = new ImageDailyStatsEntity(encodedUrl, dailyDateStr);
                     imageDailyStatsEntity.TotalCount = 1;
                     if (actionType != null)
                     {
@@ -89,7 +89,6 @@ namespace meitubikanSite.Models
                 }
                 else
                 {
-                    ImageDailyStatsEntity imageDailyStatsEntity = imageDailyStatsEntityList[0];
                     imageDailyStatsEntity.TotalCount++;
                     if (actionType != null)
                     {
@@ -103,6 +102,47 @@ namespace meitubikanSite.Models
                         }
                     }
                     UpdateImageDailyStatsEntity(imageDailyStatsEntity);
+                }
+            }
+        }
+
+        // Log user search and update related query stats
+        public void LogUserSearch(UserSearchEntity entity)
+        {
+            if (entity != null)
+            {
+                InsertUserSearchEntity(entity);
+                string eventID = entity.RowKey;
+                string dailyDateStr = StorageModel.GetDailyDateString();
+                string encodedQuery = StorageModel.UrlEncode(entity.Query);
+
+                // Query stats
+                List<QueryStatsEntity> queryStatsEntityList = GetQueryStatsEntityByPartition(encodedQuery);
+                if (queryStatsEntityList == null || queryStatsEntityList.Count == 0)
+                {
+                    QueryStatsEntity queryStatsEntity = new QueryStatsEntity(encodedQuery, eventID);
+                    queryStatsEntity.TotalCount = 1;
+                    InsertQueryStatsEntity(queryStatsEntity);
+                }
+                else
+                {
+                    QueryStatsEntity queryStatsEntity = queryStatsEntityList[0];
+                    queryStatsEntity.TotalCount++;
+                    UpdateQueryStatsEntity(queryStatsEntity);
+                }
+
+                // QueryDaily stats
+                QueryDailyStatsEntity queryDailyStatsEntity = GetQueryDailyStatsEntity(encodedQuery, dailyDateStr);
+                if (queryDailyStatsEntity == null)
+                {
+                    queryDailyStatsEntity = new QueryDailyStatsEntity(encodedQuery, dailyDateStr);
+                    queryDailyStatsEntity.TotalCount = 1;
+                    InsertQueryDailyStatsEntity(queryDailyStatsEntity);
+                }
+                else
+                {
+                    queryDailyStatsEntity.TotalCount++;
+                    UpdateQueryDailyStatsEntity(queryDailyStatsEntity);
                 }
             }
         }
@@ -233,6 +273,132 @@ namespace meitubikanSite.Models
             StorageModel.GetTable(StorageModel.ImageDailyStatsTableName)
                         .Execute(TableOperation.Replace(entity));
         }
+
+        // ** User Search **
+        // Select
+        private UserSearchEntity GetUserSearchEntity(string partitionKey, string rowKey)
+        {
+            TableResult res = StorageModel.GetTable(StorageModel.UserSearchTableName)
+                                          .Execute(TableOperation.Retrieve<UserSearchEntity>(partitionKey, rowKey));
+
+            return (null != res.Result) ? (UserSearchEntity)res.Result : null;
+        }
+
+        private List<UserSearchEntity> GetUserSearchEntityByPartition(string pKey)
+        {
+            TableQuery<UserSearchEntity> query = new TableQuery<UserSearchEntity>()
+                .Where(TableQuery.GenerateFilterCondition("PartitionKey", QueryComparisons.Equal, pKey));
+
+            return StorageModel.GetTable(StorageModel.UserSearchTableName)
+                               .ExecuteQuery(query).ToList<UserSearchEntity>();
+        }
+
+        // TODO: select all items from table.
+
+        // Insert
+        private void InsertUserSearchEntity(UserSearchEntity entity)
+        {
+            StorageModel.GetTable(StorageModel.UserSearchTableName)
+                        .Execute(TableOperation.Insert(entity));
+        }
+
+        // Delete
+        private void DeleteUserSearchEntity(UserSearchEntity entity)
+        {
+            StorageModel.GetTable(StorageModel.UserSearchTableName)
+                        .Execute(TableOperation.Delete(entity));
+        }
+
+        // Update
+        private void UpdateUserSearchEntity(UserSearchEntity entity)
+        {
+            StorageModel.GetTable(StorageModel.UserSearchTableName)
+                        .Execute(TableOperation.Replace(entity));
+        }
+
+        // ** Query Stats **
+        // Select
+        private QueryStatsEntity GetQueryStatsEntity(string partitionKey, string rowKey)
+        {
+            TableResult res = StorageModel.GetTable(StorageModel.QueryStatsTableName)
+                                          .Execute(TableOperation.Retrieve<QueryStatsEntity>(partitionKey, rowKey));
+
+            return (null != res.Result) ? (QueryStatsEntity)res.Result : null;
+        }
+
+        private List<QueryStatsEntity> GetQueryStatsEntityByPartition(string pKey)
+        {
+            TableQuery<QueryStatsEntity> query = new TableQuery<QueryStatsEntity>()
+                .Where(TableQuery.GenerateFilterCondition("PartitionKey", QueryComparisons.Equal, pKey));
+
+            return StorageModel.GetTable(StorageModel.QueryStatsTableName)
+                               .ExecuteQuery(query).ToList<QueryStatsEntity>();
+        }
+
+        // TODO: select all items from table.
+
+        // Insert
+        private void InsertQueryStatsEntity(QueryStatsEntity entity)
+        {
+            StorageModel.GetTable(StorageModel.QueryStatsTableName)
+                        .Execute(TableOperation.Insert(entity));
+        }
+
+        // Delete
+        private void DeleteQueryStatsEntity(QueryStatsEntity entity)
+        {
+            StorageModel.GetTable(StorageModel.QueryStatsTableName)
+                        .Execute(TableOperation.Delete(entity));
+        }
+
+        // Update
+        private void UpdateQueryStatsEntity(QueryStatsEntity entity)
+        {
+            StorageModel.GetTable(StorageModel.QueryStatsTableName)
+                        .Execute(TableOperation.Replace(entity));
+        }
+
+        // ** Query Daily Stats **
+        // Select
+        private QueryDailyStatsEntity GetQueryDailyStatsEntity(string partitionKey, string rowKey)
+        {
+            TableResult res = StorageModel.GetTable(StorageModel.QueryDailyStatsTableName)
+                                          .Execute(TableOperation.Retrieve<QueryDailyStatsEntity>(partitionKey, rowKey));
+
+            return (null != res.Result) ? (QueryDailyStatsEntity)res.Result : null;
+        }
+
+        private List<QueryDailyStatsEntity> GetQueryDailyStatsEntityByPartition(string pKey)
+        {
+            TableQuery<QueryDailyStatsEntity> query = new TableQuery<QueryDailyStatsEntity>()
+                .Where(TableQuery.GenerateFilterCondition("PartitionKey", QueryComparisons.Equal, pKey));
+
+            return StorageModel.GetTable(StorageModel.QueryDailyStatsTableName)
+                               .ExecuteQuery(query).ToList<QueryDailyStatsEntity>();
+        }
+
+        // TODO: select all items from table.
+
+        // Insert
+        private void InsertQueryDailyStatsEntity(QueryDailyStatsEntity entity)
+        {
+            StorageModel.GetTable(StorageModel.QueryDailyStatsTableName)
+                        .Execute(TableOperation.Insert(entity));
+        }
+
+        // Delete
+        private void DeleteQueryDailyStatsEntity(QueryDailyStatsEntity entity)
+        {
+            StorageModel.GetTable(StorageModel.QueryDailyStatsTableName)
+                        .Execute(TableOperation.Delete(entity));
+        }
+
+        // Update
+        private void UpdateQueryDailyStatsEntity(QueryDailyStatsEntity entity)
+        {
+            StorageModel.GetTable(StorageModel.QueryDailyStatsTableName)
+                        .Execute(TableOperation.Replace(entity));
+        }
     }
     
     public class UserActionEntity : TableEntity
@@ -279,5 +445,45 @@ namespace meitubikanSite.Models
         public int TotalCount { get; set; }
         public int DownloadCount { get; set; }
         public int CloudSaveCount { get; set; }
+    }
+
+    public class UserSearchEntity : TableEntity
+    {
+        public UserSearchEntity() { }
+
+        public UserSearchEntity(string clientID, string eventID)
+        {
+            this.PartitionKey = clientID;
+            this.RowKey = eventID;
+        }
+
+        public string Query { get; set; }
+        public string ApkVersion { get; set; }
+    }
+
+    public class QueryStatsEntity : TableEntity
+    {
+        public QueryStatsEntity() { }
+
+        public QueryStatsEntity(string encodedQuery, string eventID)
+        {
+            this.PartitionKey = encodedQuery;
+            this.RowKey = eventID;
+        }
+
+        public int TotalCount { get; set; }
+    }
+
+    public class QueryDailyStatsEntity : TableEntity
+    {
+        public QueryDailyStatsEntity() { }
+
+        public QueryDailyStatsEntity(string encodedQuery, string dateStr)
+        {
+            this.PartitionKey = encodedQuery;
+            this.RowKey = dateStr;
+        }
+
+        public int TotalCount { get; set; }
     }
 }
