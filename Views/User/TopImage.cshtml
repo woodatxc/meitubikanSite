@@ -1,0 +1,31 @@
+﻿@{
+    ViewBag.Title = "最热图片";
+}
+
+<h2>@ViewBag.Title</h2>
+
+<div>
+    <table class="table">
+        <thead>
+            <tr>
+                @{
+                    int index = 0;
+                }
+                <th>#</th>
+                <th>图片</th>
+                <th style="width:30%">次数</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var entity in ViewBag.EntityList)
+            {
+                index++;
+                <tr>
+                    <td>@index</td>
+                    <td><a href="@entity.PartitionKey">@entity.PartitionKey</a></td>
+                    <td>@entity.TotalCount</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

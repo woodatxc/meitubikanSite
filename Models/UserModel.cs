@@ -147,6 +147,33 @@ namespace meitubikanSite.Models
             }
         }
 
+        // Get top query
+        public List<QueryStatsEntity> GetTopQuery(int count)
+        {
+            List<QueryStatsEntity> entityList = GetAllQueryStatsEntity();
+            List <QueryStatsEntity> topEntityList = new List<QueryStatsEntity>(entityList.OrderByDescending(e => e.TotalCount).ToList<QueryStatsEntity>().Take(count));
+            foreach (QueryStatsEntity entity in topEntityList)
+            {
+                entity.PartitionKey = StorageModel.UrlDecode(entity.PartitionKey);
+            }
+            return topEntityList;
+        }
+
+        // Get top image
+        public List<ImageStatsEntity> GetTopImage(int count)
+        {
+            List<ImageStatsEntity> entityList = GetAllImageStatsEntity();
+            List<ImageStatsEntity> topEntityList = new List<ImageStatsEntity>(entityList.OrderByDescending(e => e.TotalCount).ToList<ImageStatsEntity>().Take(count));
+            foreach (ImageStatsEntity entity in topEntityList)
+            {
+                entity.PartitionKey = StorageModel.UrlDecode(entity.PartitionKey);
+            }
+            return topEntityList;
+        }
+
+        // *** Helper functions ***
+
+
         // *** Basic storage operations ***
         // ** User Action **
         // Select
@@ -207,6 +234,22 @@ namespace meitubikanSite.Models
 
             return StorageModel.GetTable(StorageModel.ImageStatsTableName)
                                .ExecuteQuery(query).ToList<ImageStatsEntity>();
+        }
+
+        private List<ImageStatsEntity> GetAllImageStatsEntity()
+        {
+            CloudTable table = StorageModel.GetTable(StorageModel.ImageStatsTableName);
+            TableContinuationToken token = null;
+            List<ImageStatsEntity> entityList = new List<ImageStatsEntity>();
+
+            do
+            {
+                var queryResult = table.ExecuteQuerySegmented(new TableQuery<ImageStatsEntity>(), token);
+                entityList.AddRange(queryResult.Results);
+                token = queryResult.ContinuationToken;
+            } while (token != null);
+
+            return entityList;
         }
 
         // TODO: select all items from table.
@@ -335,6 +378,22 @@ namespace meitubikanSite.Models
                                .ExecuteQuery(query).ToList<QueryStatsEntity>();
         }
 
+        private List<QueryStatsEntity> GetAllQueryStatsEntity()
+        {
+            CloudTable table = StorageModel.GetTable(StorageModel.QueryStatsTableName);
+            TableContinuationToken token = null;
+            List<QueryStatsEntity> entityList = new List<QueryStatsEntity>();
+
+            do
+            {
+                var queryResult = table.ExecuteQuerySegmented(new TableQuery<QueryStatsEntity>(), token);
+                entityList.AddRange(queryResult.Results);
+                token = queryResult.ContinuationToken;
+            } while (token != null);
+
+            return entityList;
+        }
+
         // TODO: select all items from table.
 
         // Insert
@@ -458,6 +517,7 @@ namespace meitubikanSite.Models
         }
 
         public string Query { get; set; }
+        public string Source { get; set; }
         public string ApkVersion { get; set; }
     }
 
