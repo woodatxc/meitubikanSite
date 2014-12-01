@@ -28,6 +28,9 @@ namespace meitubikanSite.Controllers
             {
                 data.Add("TotalDownload", BaseDownload + ApkModel.GetTotalDownload("ucresultpage") + ApkModel.GetTotalDownload("uclandingpage") + ApkModel.GetTotalDownload("ucdetailpage"));
             }
+            
+            // Allow access from other domain
+            this.ControllerContext.HttpContext.Response.AddHeader("Access-Control-Allow-Origin", "*");
 
             return this.Json(data, JsonRequestBehavior.AllowGet);
         }

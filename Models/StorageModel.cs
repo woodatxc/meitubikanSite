@@ -30,6 +30,9 @@ namespace meitubikanSite.Models
         public static readonly string QueryStatsTableName = "QueryStats";
         public static readonly string QueryDailyStatsTableName = "QueryDailyStats";
 
+        // ** Popular Model **
+        public static readonly string PopularQueryTableName = "PopularQuery";
+
         // *** End of storage item name section ***
 
         // *** Helper functions ***
