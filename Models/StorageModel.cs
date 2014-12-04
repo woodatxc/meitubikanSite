@@ -33,6 +33,10 @@ namespace meitubikanSite.Models
         // ** Popular Model **
         public static readonly string PopularQueryTableName = "PopularQuery";
 
+        // ** Search Model **
+        public static readonly string SearchResultTableName = "SearchResult";
+        public static readonly string SearchResultContainerName = "meitubikansearchresults";
+
         // *** End of storage item name section ***
 
         // *** Helper functions ***
