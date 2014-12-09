@@ -16,8 +16,81 @@ namespace meitubikanSite.Controllers
         private static SearchModel SearchModelInstance = new SearchModel();
         private static int EachStepCount = 30;
         private static int StartPosition = 1;
-        private static int TotalCountLimit = 300;
+        private static int TotalCountLimit = 100;
+        private static int EnlargeCountLimit = 3000;
         private static int ExpireMinutes = 7 * 24 * 60;
+
+        public delegate void AsyncEnlargeImagePoolHandler(SearchEntity entity, string baseUrl);
+
+        public JsonResult SearchCategory()
+        {
+            List<CategoryEntity> entityList = SearchModelInstance.GetAllCategoryEntity();
+            List<CategoryItem> itemList = new List<CategoryItem>();
+
+            for (int i = 0; i < entityList.Count; i++)
+            {
+                CategoryEntity entity = entityList[i];
+                string category = StorageModel.UrlDecode(entity.PartitionKey);
+                string subCategory = StorageModel.UrlDecode(entity.RowKey);
+                string query = StorageModel.UrlDecode(entity.Query);
+                int position = entity.Position;
+                CategoryItem item = null;
+                for (int j = 0; j < itemList.Count; j++)
+                {
+                    CategoryItem curItem = itemList[j];
+                    if (curItem.Name.Equals(category))
+                    {
+                        item = curItem;
+                        break;
+                    }
+                }
+                if (item == null)
+                {
+                    item = new CategoryItem();
+                    itemList.Add(item);
+                }
+                // Top setting
+                if (string.IsNullOrWhiteSpace(subCategory))
+                {
+                    item.Name = category;
+                    item.Query = query;
+                    item.Pos = position;
+                }
+                // Sub setting
+                else
+                {
+                    if (item.Children == null)
+                    {
+                        item.Children = new List<SubCategoryItem>();
+                    }
+                    SubCategoryItem subItem = new SubCategoryItem();
+                    subItem.SubName = subCategory;
+                    subItem.SubQuery = query;
+                    subItem.SubPos = position;
+                    item.Children.Add(subItem);
+                }
+            }
+
+            string json = JsonConvert.SerializeObject(itemList);
+
+            return this.Json(json, JsonRequestBehavior.AllowGet);
+        }
+
+        public void AddSearchCategory()
+        {
+            string category = ControllerHelper.NormalizeString(string.IsNullOrWhiteSpace(Request["category"]) ? string.Empty : Request["category"]);
+            string subcategory = ControllerHelper.NormalizeString(string.IsNullOrWhiteSpace(Request["subcategory"]) ? string.Empty : Request["subcategory"]);
+            string query = ControllerHelper.NormalizeString(string.IsNullOrWhiteSpace(Request["query"]) ? string.Empty : Request["query"]);
+            int position = int.Parse(ControllerHelper.NormalizeString(string.IsNullOrWhiteSpace(Request["position"]) ? "0" : Request["position"]));
+
+            CategoryEntity entity = new CategoryEntity();
+            entity.PartitionKey = StorageModel.UrlEncode(category);
+            entity.RowKey = StorageModel.UrlEncode(subcategory);
+            entity.Query = StorageModel.UrlEncode(query);
+            entity.Position = position;
+
+            SearchModelInstance.SaveSearchCategory(entity);
+        }
 
         public JsonResult ImageSearch()
         {
@@ -27,8 +100,33 @@ namespace meitubikanSite.Controllers
             int height = int.Parse(ControllerHelper.NormalizeString(string.IsNullOrWhiteSpace(Request["height"]) ? "0" : Request["height"]));
             string network = ControllerHelper.NormalizeString(string.IsNullOrWhiteSpace(Request["network"]) ? string.Empty : Request["network"]);
 
+            string json = GetImageSearchJson(query, width, height, network);
+
+            return this.Json(json, JsonRequestBehavior.AllowGet);
+        }
+
+        public ActionResult ImageSearchPortal()
+        {
+            // Require encoded with HttpUtility.UrlEncode
+            string query = ControllerHelper.NormalizeString(string.IsNullOrWhiteSpace(Request["query"]) ? string.Empty : Request["query"]);
+            int width = int.Parse(ControllerHelper.NormalizeString(string.IsNullOrWhiteSpace(Request["width"]) ? "0" : Request["width"]));
+            int height = int.Parse(ControllerHelper.NormalizeString(string.IsNullOrWhiteSpace(Request["height"]) ? "0" : Request["height"]));
+            string network = ControllerHelper.NormalizeString(string.IsNullOrWhiteSpace(Request["network"]) ? string.Empty : Request["network"]);
+
+            string json = GetImageSearchJson(query, width, height, network);
+
+            JArray ja = (JArray)JsonConvert.DeserializeObject(json);
+
+            ViewBag.EntityList = ja;
+
+            return View();
+        }
+
+        private string GetImageSearchJson(string query, int width, int height, string network)
+        {
             string filter = GenerateFilter(width, height, network);
             string encodedFilter = StorageModel.UrlEncode(filter);
+            string baseUrl = "http://www.bing.com/images/async?view=detail&q=" + query + filter;
 
             string json = "";
 
@@ -36,30 +134,39 @@ namespace meitubikanSite.Controllers
             SearchEntity cachedEntity = SearchModelInstance.GetSearchResult(entity);
             if (IsValid(cachedEntity))
             {
-                json = SearchModelInstance.GetSearchResultJson(cachedEntity);
+                json = SearchModelInstance.GetSearchResultJson(cachedEntity, false);
             }
             else
             {
-                string baseUrl = "http://www.bing.com/images/async?view=detail&q=" + query + filter;
-                json = GenerateSearchResult(baseUrl);
+                json = GenerateSearchResult(baseUrl, TotalCountLimit);
                 SearchModelInstance.SaveSearchResult(entity);
-                SearchModelInstance.SaveSearchResultJson(entity, json);
+                SearchModelInstance.SaveSearchResultJson(entity, json, false);
+                // Async enlarge image pool
+                AsyncEnlargeImagePoolHandler asy = new AsyncEnlargeImagePoolHandler(EnlargeImagePool);
+                asy.BeginInvoke(entity, baseUrl, null, null);
             }
 
-            return this.Json(json, JsonRequestBehavior.AllowGet);
+            return json;
+        }
+
+        private void EnlargeImagePool(SearchEntity entity, string baseUrl)
+        {
+            string json = GenerateSearchResult(baseUrl, EnlargeCountLimit);
+            SearchModelInstance.SaveSearchResultJson(entity, json, true);
         }
 
         private string GenerateFilter(int width, int height, string network)
         {
-            return "";
+            return "&qft=+filterui:imagesize-wallpaper";
         }
 
-        private string GenerateSearchResult(string baseUrl)
+        private string GenerateSearchResult(string baseUrl, int limit)
         {
             string content = "";
             HashSet<string> midSet = new HashSet<string>();
             List<ImageItem> itemList = new List<ImageItem>();
-            for (int i = 0; i < TotalCountLimit; i += EachStepCount)
+            int position = 1;
+            for (int i = 0; i < limit; i += EachStepCount)
             {
                 string url = baseUrl + "&count=" + EachStepCount + "&first=" + (StartPosition + i);
                 string singleContent = ControllerHelper.Crawl(url, "utf-8");
@@ -87,6 +194,7 @@ namespace meitubikanSite.Controllers
                             item.OHeight = ControllerHelper.NormalizeString(parts[1]);
                             item.OSize = ControllerHelper.NormalizeString(strs[1]);
                         }
+                        item.Pos = position++;
                         itemList.Add(item);
                     }
                 }
@@ -122,6 +230,22 @@ namespace meitubikanSite.Controllers
             public string OWidth { get; set; }
             public string OHeight { get; set; }
             public string OSize { get; set; }
+            public int Pos { get; set; }
+        }
+
+        private class CategoryItem
+        {
+            public string Name { get; set; }
+            public string Query { get; set; }
+            public int Pos { get; set; }
+            public List<SubCategoryItem> Children { get; set; }
+        }
+
+        private class SubCategoryItem
+        {
+            public string SubName { get; set; }
+            public string SubQuery { get; set; }
+            public int SubPos { get; set; }
         }
     }
 }

@@ -35,6 +35,7 @@ namespace meitubikanSite.Models
 
         // ** Search Model **
         public static readonly string SearchResultTableName = "SearchResult";
+        public static readonly string SearchCategoryTableName = "SearchCategory";
         public static readonly string SearchResultContainerName = "meitubikansearchresults";
 
         // *** End of storage item name section ***
