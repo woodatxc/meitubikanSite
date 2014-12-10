@@ -18,6 +18,11 @@ namespace meitubikanSite.Controllers
         {
             string source = string.IsNullOrWhiteSpace(Request["form"]) ? string.Empty : Request["form"];
             source = source.ToLower().Trim();
+            if (string.IsNullOrWhiteSpace(source))
+            {
+                string channel = string.IsNullOrWhiteSpace(Request["channel"]) ? string.Empty : Request["channel"];
+                source = channel.ToLower().Trim();
+            }
 
             Hashtable data = new Hashtable();
             if (!string.IsNullOrEmpty(source))
@@ -39,6 +44,11 @@ namespace meitubikanSite.Controllers
         {
             string source = string.IsNullOrWhiteSpace(Request["form"]) ? string.Empty : Request["form"];
             source = source.ToLower().Trim();
+            if (string.IsNullOrWhiteSpace(source))
+            {
+                string channel = string.IsNullOrWhiteSpace(Request["channel"]) ? string.Empty : Request["channel"];
+                source = channel.ToLower().Trim();
+            }
 
             if (!string.IsNullOrEmpty(source))
             {
