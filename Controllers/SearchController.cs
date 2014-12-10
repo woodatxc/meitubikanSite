@@ -17,8 +17,9 @@ namespace meitubikanSite.Controllers
         private static int EachStepCount = 30;
         private static int StartPosition = 1;
         private static int TotalCountLimit = 100;
-        private static int EnlargeCountLimit = 3000;
+        private static int EnlargeCountLimit = 6000;
         private static int ExpireMinutes = 7 * 24 * 60;
+        private static int MinimumResultCount = 20;
 
         public delegate void AsyncEnlargeImagePoolHandler(SearchEntity entity, string baseUrl);
 
@@ -99,8 +100,9 @@ namespace meitubikanSite.Controllers
             int width = int.Parse(ControllerHelper.NormalizeString(string.IsNullOrWhiteSpace(Request["width"]) ? "0" : Request["width"]));
             int height = int.Parse(ControllerHelper.NormalizeString(string.IsNullOrWhiteSpace(Request["height"]) ? "0" : Request["height"]));
             string network = ControllerHelper.NormalizeString(string.IsNullOrWhiteSpace(Request["network"]) ? string.Empty : Request["network"]);
+            int page = int.Parse(ControllerHelper.NormalizeString(string.IsNullOrWhiteSpace(Request["page"]) ? "1" : Request["page"]));
 
-            string json = GetImageSearchJson(query, width, height, network);
+            string json = JsonConvert.SerializeObject(GetImageSearchJson(query, width, height, network, page));
 
             return this.Json(json, JsonRequestBehavior.AllowGet);
         }
@@ -112,46 +114,108 @@ namespace meitubikanSite.Controllers
             int width = int.Parse(ControllerHelper.NormalizeString(string.IsNullOrWhiteSpace(Request["width"]) ? "0" : Request["width"]));
             int height = int.Parse(ControllerHelper.NormalizeString(string.IsNullOrWhiteSpace(Request["height"]) ? "0" : Request["height"]));
             string network = ControllerHelper.NormalizeString(string.IsNullOrWhiteSpace(Request["network"]) ? string.Empty : Request["network"]);
+            int page = int.Parse(ControllerHelper.NormalizeString(string.IsNullOrWhiteSpace(Request["page"]) ? "1" : Request["page"]));
 
-            string json = GetImageSearchJson(query, width, height, network);
-
-            JArray ja = (JArray)JsonConvert.DeserializeObject(json);
-
-            ViewBag.EntityList = ja;
+            ViewBag.EntityList = GetImageSearchJson(query, width, height, network, page);
 
             return View();
         }
 
-        private string GetImageSearchJson(string query, int width, int height, string network)
+        private List<ImageItem> GetImageSearchJson(string query, int width, int height, string network, int page)
         {
+            List<ImageItem> itemList = new List<ImageItem>();
+
             string filter = GenerateFilter(width, height, network);
             string encodedFilter = StorageModel.UrlEncode(filter);
             string baseUrl = "http://www.bing.com/images/async?view=detail&q=" + query + filter;
 
-            string json = "";
-
             SearchEntity entity = new SearchEntity(query, encodedFilter);
             SearchEntity cachedEntity = SearchModelInstance.GetSearchResult(entity);
+            // Already cached
             if (IsValid(cachedEntity))
             {
-                json = SearchModelInstance.GetSearchResultJson(cachedEntity, false);
+                // Get enlarge json
+                string enlargeJson = SearchModelInstance.GetSearchResultJson(cachedEntity, true);
+                if (enlargeJson != null)
+                {
+                    // Select from enlarge json
+                    itemList = SelectFromJson(enlargeJson, page);
+                    return itemList;
+                }
+            }
+            
+            // No cache or cache lost / expired, get result from Bing
+            string json = GenerateSearchResult(baseUrl, TotalCountLimit);
+            // Select from small json
+            itemList = SelectFromJson(json, page);
+            // Record cache status
+            SearchModelInstance.SaveSearchResult(entity);
+            // Save small json file
+            SearchModelInstance.SaveSearchResultJson(entity, json, false);
+            // Async enlarge image pool
+            AsyncEnlargeImagePoolHandler asy = new AsyncEnlargeImagePoolHandler(EnlargeImagePool);
+            asy.BeginInvoke(entity, baseUrl, null, null);
+
+            return itemList;
+        }
+
+        private List<ImageItem> SelectFromJson(string json, int page)
+        {
+            List<ImageItem> itemList = new List<ImageItem>();
+            if (json != null)
+            {
+                JArray ja = (JArray)JsonConvert.DeserializeObject(json);
+
+                for (int i = 0; i < ja.Count; i++)
+                {
+                    ImageItem item = new ImageItem();
+                    item.ImgUrl = ja[i]["ImgUrl"].ToString();
+                    item.LthUrl = ja[i]["LthUrl"].ToString();
+                    item.Width = ja[i]["Width"].ToString();
+                    item.Height = ja[i]["Height"].ToString();
+                    item.OWidth = ja[i]["OWidth"].ToString();
+                    item.OHeight = ja[i]["OHeight"].ToString();
+                    item.OSize = ja[i]["OSize"].ToString();
+                    item.Pos = int.Parse(ja[i]["Pos"].ToString());
+
+                    if (DateSelect(item.Pos, ja.Count, page))
+                    {
+                        itemList.Add(item);
+                    }
+                }
+            }
+            return itemList;
+        }
+
+        private bool DateSelect(int pos, int totalCount, int page)
+        {
+            // Each time we return MinimumResultCount images
+            int noDupWindow = totalCount / MinimumResultCount;
+            // Date determine the start point
+            DateTime baseDate = new DateTime(2014, 1, 1);
+            int datePoint = (DateTime.Now - baseDate).Days;
+            // Page determine the offset
+            if (page > noDupWindow)
+            {
+                // All images are returned
+                return false;
             }
             else
             {
-                json = GenerateSearchResult(baseUrl, TotalCountLimit);
-                SearchModelInstance.SaveSearchResult(entity);
-                SearchModelInstance.SaveSearchResultJson(entity, json, false);
-                // Async enlarge image pool
-                AsyncEnlargeImagePoolHandler asy = new AsyncEnlargeImagePoolHandler(EnlargeImagePool);
-                asy.BeginInvoke(entity, baseUrl, null, null);
+                int target = (datePoint + page) % noDupWindow;
+                int cur = pos % noDupWindow;
+                if (cur == target)
+                {
+                    return true;
+                }
             }
-
-            return json;
+            return false;
         }
 
         private void EnlargeImagePool(SearchEntity entity, string baseUrl)
         {
             string json = GenerateSearchResult(baseUrl, EnlargeCountLimit);
+            // Save enlarge json file
             SearchModelInstance.SaveSearchResultJson(entity, json, true);
         }
 
@@ -221,7 +285,7 @@ namespace meitubikanSite.Controllers
             return true;
         }
 
-        private class ImageItem
+        public class ImageItem
         {
             public string ImgUrl { get; set; }
             public string LthUrl { get; set; }

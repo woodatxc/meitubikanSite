@@ -36,6 +36,7 @@ namespace meitubikanSite.Models
                 }
                 else
                 {
+                    entity.ETag = "*";
                     UpdateSearchEntity(entity);
                 }
             }
@@ -49,6 +50,10 @@ namespace meitubikanSite.Models
                 string filename = GetSearchResultFilename(entity, isEnlarge);
                 MemoryStream ms = new MemoryStream();
                 CloudBlockBlob blob = StorageModel.GetBlobContainer(StorageModel.SearchResultContainerName).GetBlockBlobReference(filename);
+                if (!blob.Exists())
+                {
+                    return null;
+                }
                 blob.DownloadToStream(ms);
                 string json = System.Text.Encoding.Default.GetString(ms.ToArray());
                 return json;

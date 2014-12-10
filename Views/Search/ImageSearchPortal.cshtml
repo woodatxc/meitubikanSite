@@ -14,12 +14,12 @@
             </tr>
         </thead>
         <tbody>
-            @foreach (var entity in ViewBag.EntityList)
+            @foreach (meitubikanSite.Controllers.SearchController.ImageItem entity in ViewBag.EntityList)
             {
-                var position = entity["Pos"];
-                var imgUrl = entity["ImgUrl"];
-                var lthUrl = entity["LthUrl"];
-                var oSize = entity["OSize"];
+                var position = entity.Pos;
+                var imgUrl = entity.ImgUrl;
+                var lthUrl = entity.LthUrl;
+                var oSize = entity.OSize;
                 <tr>
                     <td>@position</td>
                     <td><a href="@imgUrl" target="_blank"><img src="@lthUrl" style="max-width: 500px;" /></a></td>
