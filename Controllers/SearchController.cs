@@ -72,6 +72,18 @@ namespace meitubikanSite.Controllers
                 }
             }
 
+            // Sort by position
+            for (int i = 0; i < itemList.Count; i++)
+            {
+                CategoryItem item = itemList[i];
+                List<SubCategoryItem> subitemList = item.Children;
+                if (subitemList != null)
+                {
+                    item.Children = new List<SubCategoryItem>(subitemList.OrderBy(s => s.SubPos));
+                }
+            }
+            itemList = new List<CategoryItem>(itemList.OrderBy(i => i.Pos));
+
             string json = JsonConvert.SerializeObject(itemList);
 
             return this.Json(json, JsonRequestBehavior.AllowGet);
