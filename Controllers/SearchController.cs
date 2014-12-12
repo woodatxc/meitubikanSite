@@ -20,6 +20,7 @@ namespace meitubikanSite.Controllers
         private static int EnlargeCountLimit = 6000;
         private static int ExpireMinutes = 7 * 24 * 60;
         private static int MinimumResultCount = 20;
+        private static int MinimumTotalCount = 100;
 
         public delegate void AsyncEnlargeImagePoolHandler(SearchEntity entity, string baseUrl);
 
@@ -143,12 +144,13 @@ namespace meitubikanSite.Controllers
 
             SearchEntity entity = new SearchEntity(query, encodedFilter);
             SearchEntity cachedEntity = SearchModelInstance.GetSearchResult(entity);
-            // Already cached
+            // Already cached and not outdated
             if (IsValid(cachedEntity))
             {
                 // Get enlarge json
                 string enlargeJson = SearchModelInstance.GetSearchResultJson(cachedEntity, true);
-                if (enlargeJson != null)
+                // Has cached results and has enough images.
+                if (enlargeJson != null && HasEnoughImages(enlargeJson))
                 {
                     // Select from enlarge json
                     itemList = SelectFromJson(enlargeJson, page);
@@ -157,6 +159,8 @@ namespace meitubikanSite.Controllers
             }
             
             // No cache or cache lost / expired, get result from Bing
+            // Warm up backend
+            ControllerHelper.Crawl(baseUrl, "utf-8", true);
             string json = GenerateSearchResult(baseUrl, TotalCountLimit);
             // Select from small json
             itemList = SelectFromJson(json, page);
@@ -201,6 +205,11 @@ namespace meitubikanSite.Controllers
 
         private bool DateSelect(int pos, int totalCount, int page)
         {
+            // Special case: total count is too few, return all for first page and return null for others
+            if (totalCount <= MinimumResultCount)
+            {
+                return page == 1 ? true : false;
+            }
             // Each time we return MinimumResultCount images
             int noDupWindow = totalCount / MinimumResultCount;
             // Date determine the start point
@@ -217,6 +226,20 @@ namespace meitubikanSite.Controllers
                 int target = (datePoint + page) % noDupWindow;
                 int cur = pos % noDupWindow;
                 if (cur == target)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private bool HasEnoughImages(string json)
+        {
+            if (json != null)
+            {
+                JArray ja = (JArray)JsonConvert.DeserializeObject(json);
+
+                if (ja.Count >= MinimumTotalCount)
                 {
                     return true;
                 }
@@ -286,10 +309,12 @@ namespace meitubikanSite.Controllers
 
         private bool IsValid(SearchEntity cachedEntity)
         {
+            // No record, invalid.
             if (cachedEntity == null)
             {
                 return false;
             }
+            // Outdated, invalid.
             else if ((DateTime.Now - cachedEntity.Timestamp).TotalMinutes > ExpireMinutes)
             {
                 return false;

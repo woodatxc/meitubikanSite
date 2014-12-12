@@ -15,13 +15,20 @@ namespace meitubikanSite.Controllers
             return str == null ? null : str.ToLower().Trim();
         }
 
-        public static string Crawl(string url, string encoding)
+        public static string Crawl(string url, string encoding, bool isWarmup = false)
         {
             string content = "";
             try
             {
                 HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
-                request.UserAgent = "Mozilla/5.0 (Linux; U; Android 4.2.2; zh-cn; HUAWEI G610-T11 Build/HuaweiG610-T11) AppleWebKit/534.30 (KHTML, like Gecko) Version/4.0 Mobile Safari/534.30 BingWeb/BingImage/1.0.0.20141130030010";
+                if (isWarmup)
+                {
+                    request.UserAgent = "Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.0; .NET CLR 1.0.3705)";
+                }
+                else
+                {
+                    request.UserAgent = "Mozilla/5.0 (Linux; U; Android 4.2.2; zh-cn; HUAWEI G610-T11 Build/HuaweiG610-T11) AppleWebKit/534.30 (KHTML, like Gecko) Version/4.0 Mobile Safari/534.30 BingWeb/BingImage/1.0.0.20141130030010";
+                }
                 request.Timeout = 10000;
                 HttpWebResponse response = (HttpWebResponse)request.GetResponse();
                 if (response.StatusCode == HttpStatusCode.OK)
