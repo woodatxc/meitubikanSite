@@ -11,6 +11,8 @@ namespace meitubikanSite.Models
         private static string DownloadActionType = "download";
         private static string CloudSaveActionType = "cloudsave";
 
+        private static int HotQueryThreshold = 10;
+
         private static ImageModel ImageModelInstance = new ImageModel();
 
         // *** Business related functions ***
@@ -169,6 +171,22 @@ namespace meitubikanSite.Models
                 entity.PartitionKey = StorageModel.UrlDecode(entity.PartitionKey);
             }
             return topEntityList;
+        }
+
+        public bool IsHotQuery(string query)
+        {
+            List<QueryStatsEntity> entityList = GetAllQueryStatsEntity();
+            string encodedQuery = StorageModel.UrlEncode(query);
+            for (int i = 0; i < entityList.Count; i++)
+            {
+                if (entityList[i].TotalCount > HotQueryThreshold &&
+                    (query.Equals(entityList[i].PartitionKey) || encodedQuery.Equals(entityList[i].PartitionKey)))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         // *** Helper functions ***

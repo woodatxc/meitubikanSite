@@ -73,6 +73,18 @@ namespace meitubikanSite.Models
             }
         }
 
+        // Save debug json to blob
+        public void SaveSearchResultDebugJson(SearchEntity entity, string json, int first, int count)
+        {
+            if (entity != null)
+            {
+                string filename = entity.PartitionKey + "_" + entity.RowKey + "_" + first + "_" + count;
+                CloudBlockBlob blob = StorageModel.GetBlobContainer(StorageModel.SearchResultContainerName).GetBlockBlobReference(filename);
+                blob.DeleteIfExists();
+                blob.UploadText(json);
+            }
+        }
+
         public string GetSearchResultFilename(SearchEntity entity, bool isEnlarge)
         {
             string filename = "";
@@ -102,6 +114,24 @@ namespace meitubikanSite.Models
                     UpdateCategoryEntity(entity);
                 }
             }
+        }
+
+        public bool IsCategoryQuery(string encodedQuery)
+        {
+            if (!string.IsNullOrWhiteSpace(encodedQuery))
+            {
+                List<CategoryEntity> entityList = GetAllCategoryEntity();
+                for (int i = 0; i < entityList.Count; i++)
+                {
+                    // In case the query is not encoded
+                    string doubleEncodedQuery = StorageModel.UrlEncode(encodedQuery);
+                    if (encodedQuery.Equals(entityList[i].Query) || doubleEncodedQuery.Equals(entityList[i].Query))
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
         }
 
         // *** Basic storage operations ***

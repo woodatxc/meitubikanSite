@@ -15,6 +15,11 @@ namespace meitubikanSite.Controllers
             return str == null ? null : str.ToLower().Trim();
         }
 
+        public static string NormalizeStringKeepCase(string str)
+        {
+            return str == null ? null : str.Trim();
+        }
+
         public static string Crawl(string url, string encoding, bool isWarmup = false)
         {
             string content = "";
@@ -23,7 +28,7 @@ namespace meitubikanSite.Controllers
                 HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
                 if (isWarmup)
                 {
-                    request.UserAgent = "Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.0; .NET CLR 1.0.3705)";
+                    request.UserAgent = "Mozilla/5.0 (Windows NT 6.2; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36";
                 }
                 else
                 {

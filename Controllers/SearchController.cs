@@ -14,15 +14,19 @@ namespace meitubikanSite.Controllers
     public class SearchController : Controller
     {
         private static SearchModel SearchModelInstance = new SearchModel();
+        private static UserModel UserModelInstance = new UserModel();
+        private static ImageModel ImageModelInstance = new ImageModel();
         private static int EachStepCount = 30;
-        private static int StartPosition = 1;
-        private static int TotalCountLimit = 100;
-        private static int EnlargeCountLimit = 6000;
+        private static int StartPosition = 2;
+        private static int TotalCountLimit = EachStepCount * 5;
+        private static int EnlargeCountLimit = EachStepCount * 100;
         private static int ExpireMinutes = 7 * 24 * 60;
         private static int MinimumResultCount = 20;
         private static int MinimumTotalCount = 100;
+        private static int OverlapDelta = 0;
 
         public delegate void AsyncEnlargeImagePoolHandler(SearchEntity entity, string baseUrl);
+        public delegate void AsyncDownloadImageHandler(SearchEntity entity, string json);
 
         public JsonResult SearchCategory()
         {
@@ -106,6 +110,16 @@ namespace meitubikanSite.Controllers
             SearchModelInstance.SaveSearchCategory(entity);
         }
 
+        public void WarmUpCategory()
+        {
+            List<CategoryEntity> entityList = SearchModelInstance.GetAllCategoryEntity();
+            for (int i = 0; i < entityList.Count; i++)
+            {
+                string query = StorageModel.UrlDecode(entityList[i].Query);
+                this.GetImageSearchJson(query, 0, 0, string.Empty, 1);
+            }
+        }
+
         public JsonResult ImageSearch()
         {
             // Require encoded with HttpUtility.UrlEncode
@@ -134,6 +148,16 @@ namespace meitubikanSite.Controllers
             return View();
         }
 
+        public ActionResult GetImage()
+        {
+            // Require encoded with HttpUtility.UrlEncode
+            string url = ControllerHelper.NormalizeStringKeepCase(string.IsNullOrWhiteSpace(Request["url"]) ? string.Empty : Request["url"]);
+
+            MemoryStream ms = ImageModelInstance.GetImageFromBlob(url);
+
+            return File(ms.ToArray(), "image/jpeg");
+        }
+
         private List<ImageItem> GetImageSearchJson(string query, int width, int height, string network, int page)
         {
             List<ImageItem> itemList = new List<ImageItem>();
@@ -160,8 +184,9 @@ namespace meitubikanSite.Controllers
             
             // No cache or cache lost / expired, get result from Bing
             // Warm up backend
-            ControllerHelper.Crawl(baseUrl, "utf-8", true);
-            string json = GenerateSearchResult(baseUrl, TotalCountLimit);
+            //string warmupUrl = "http://www.bing.com/images/search?q=" + query + filter;
+            //ControllerHelper.Crawl(warmupUrl, "utf-8", true);
+            string json = GenerateSearchResult(entity, baseUrl, TotalCountLimit, false);
             // Select from small json
             itemList = SelectFromJson(json, page);
             // Record cache status
@@ -249,26 +274,87 @@ namespace meitubikanSite.Controllers
 
         private void EnlargeImagePool(SearchEntity entity, string baseUrl)
         {
-            string json = GenerateSearchResult(baseUrl, EnlargeCountLimit);
+            string json = GenerateSearchResult(entity, baseUrl, EnlargeCountLimit, true);
             // Save enlarge json file
             SearchModelInstance.SaveSearchResultJson(entity, json, true);
+            // Async download image
+            // Just for category queries and hot queries
+            if (SearchModelInstance.IsCategoryQuery(entity.PartitionKey) && UserModelInstance.IsHotQuery(entity.PartitionKey))
+            {
+                AsyncDownloadImageHandler asy = new AsyncDownloadImageHandler(DownloadImage);
+                asy.BeginInvoke(entity, json, null, null);
+            }
+        }
+
+        private void DownloadImage(SearchEntity entity, string json)
+        {
+            List<ImageItem> itemList = new List<ImageItem>();
+            JArray ja = (JArray)JsonConvert.DeserializeObject(json);
+            int pos = 1;
+            string absoluteUri = HttpContext.Request.Url.AbsoluteUri;
+            string absolutePath = HttpContext.Request.Url.AbsolutePath;
+            string prefix = absoluteUri.Substring(0, absoluteUri.IndexOf(absolutePath));
+            for (int i = 0; i < ja.Count; i++)
+            {
+                // Raw item
+                ImageItem item = new ImageItem();
+                item.ImgUrl = ja[i]["ImgUrl"].ToString();
+                item.LthUrl = ja[i]["LthUrl"].ToString();
+                item.Width = ja[i]["Width"].ToString();
+                item.Height = ja[i]["Height"].ToString();
+                item.OWidth = ja[i]["OWidth"].ToString();
+                item.OHeight = ja[i]["OHeight"].ToString();
+                item.OSize = ja[i]["OSize"].ToString();
+                item.Pos = int.Parse(ja[i]["Pos"].ToString());
+                // Download thumbnail
+                string encodedLthUrl = StorageModel.UrlEncode(item.LthUrl);
+                string lthUrlPath = ImageModelInstance.SaveImage(encodedLthUrl);
+                // Download big image
+                if (!string.IsNullOrWhiteSpace(lthUrlPath))
+                {
+                    string encodedImgUrl = StorageModel.UrlEncode(item.ImgUrl);
+                    string imgUrlPath = ImageModelInstance.SaveImage(encodedImgUrl);
+                    // Download success for both thumbnail and big image, keep
+                    if (!string.IsNullOrWhiteSpace(imgUrlPath))
+                    {
+                        item.ImgUrl = prefix + "/Search/GetImage?url=" + encodedImgUrl;
+                        item.LthUrl = prefix + "/Search/GetImage?url=" + encodedLthUrl;
+                        item.Pos = pos++;
+                        itemList.Add(item);
+                    }
+                }
+            }
+            JsonSerializer serializer = new JsonSerializer();
+            StringWriter sw = new StringWriter();
+            serializer.Serialize(new JsonTextWriter(sw), itemList);
+            string content = sw.GetStringBuilder().ToString();
+            // Update enlarge json file
+            SearchModelInstance.SaveSearchResultJson(entity, content, true);
         }
 
         private string GenerateFilter(int width, int height, string network)
         {
-            return "&qft=+filterui:imagesize-wallpaper";
+            return "&qft=+filterui:imagesize-large";
         }
 
-        private string GenerateSearchResult(string baseUrl, int limit)
+        private string GenerateSearchResult(SearchEntity entity, string baseUrl, int limit, bool isEnlarge)
         {
             string content = "";
             HashSet<string> midSet = new HashSet<string>();
             List<ImageItem> itemList = new List<ImageItem>();
             int position = 1;
-            for (int i = 0; i < limit; i += EachStepCount)
+            for (int i = 0; i < limit; i += (EachStepCount - OverlapDelta))
             {
-                string url = baseUrl + "&count=" + EachStepCount + "&first=" + (StartPosition + i);
+                string url = baseUrl + "&count=" + EachStepCount + "&first=" + (StartPosition + i - OverlapDelta);
+                // Warm up
+                //string warmupUrl = url.Replace("http://www.bing.com/images/async?view=detail&", "http://www.bing.com/images/search?");
+                //ControllerHelper.Crawl(url, "utf-8", true);
                 string singleContent = ControllerHelper.Crawl(url, "utf-8");
+                if (!isEnlarge)
+                {
+                    // Debug data
+                    //SearchModelInstance.SaveSearchResultDebugJson(entity, singleContent, StartPosition + i, EachStepCount);
+                }
                 JObject jo = (JObject)JsonConvert.DeserializeObject(singleContent);
                 string nextJsonStr = jo["next"].ToString();
                 JArray ja = (JArray)JsonConvert.DeserializeObject(nextJsonStr);
@@ -283,7 +369,6 @@ namespace meitubikanSite.Controllers
                         item.LthUrl = ja[j]["lthUrl"].ToString();
                         item.Width = ja[j]["width"].ToString();
                         item.Height = ja[j]["height"].ToString();
-                        item.ImgUrl = ja[j]["imgUrl"].ToString();
                         string meta = ja[j]["meta"].ToString();
                         string[] strs = meta.Split(new char[] { '·' });
                         string[] parts = ControllerHelper.NormalizeString(strs[0]).Split(new char[] { 'x' });

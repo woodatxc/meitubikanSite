@@ -59,7 +59,6 @@ namespace meitubikanSite.Controllers
                 ApkModel.AddOneMoreApkDownload("unknown");
             }
 
-
             return File(ApkModel.GetApkFromBlob().ToArray(), "application/vnd.android.package-archive", "meitubikan.apk");
         }
 
