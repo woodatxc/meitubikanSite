@@ -279,7 +279,7 @@ namespace meitubikanSite.Controllers
             SearchModelInstance.SaveSearchResultJson(entity, json, true);
             // Async download image
             // Just for category queries and hot queries
-            if (SearchModelInstance.IsCategoryQuery(entity.PartitionKey) && UserModelInstance.IsHotQuery(entity.PartitionKey))
+            if (SearchModelInstance.IsCategoryQuery(entity.PartitionKey) || UserModelInstance.IsHotQuery(entity.PartitionKey))
             {
                 AsyncDownloadImageHandler asy = new AsyncDownloadImageHandler(DownloadImage);
                 asy.BeginInvoke(entity, json, null, null);
