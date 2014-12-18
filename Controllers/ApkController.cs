@@ -64,8 +64,13 @@ namespace meitubikanSite.Controllers
 
         public ActionResult AddOneMoreApkDownloadChs()
         {
-            string source = string.IsNullOrWhiteSpace(Request["channel"]) ? string.Empty : Request["channel"];
+            string source = string.IsNullOrWhiteSpace(Request["form"]) ? string.Empty : Request["form"];
             source = source.ToLower().Trim();
+            if (string.IsNullOrWhiteSpace(source))
+            {
+                string channel = string.IsNullOrWhiteSpace(Request["channel"]) ? string.Empty : Request["channel"];
+                source = channel.ToLower().Trim();
+            }
 
             if (!string.IsNullOrEmpty(source))
             {
@@ -76,7 +81,7 @@ namespace meitubikanSite.Controllers
                 ApkModel.AddOneMoreApkDownload("unknown");
             }
 
-            return File(ApkModel.GetApkFromBlob().ToArray(), "application/vnd.android.package-archive", "%E7%BE%8E%E5%9B%BE%E5%BF%85%E7%9C%8B.apk");
+            return File(ApkModel.GetApkFromBlob().ToArray(), "application/vnd.android.package-archive", "meitubikan.apk");
         }
 
     }

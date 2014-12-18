@@ -28,13 +28,13 @@ namespace meitubikanSite.Models
                         imageBlob.UploadFromStream(imageFileStream);
                         //imageBlob.Properties.ContentType = "image/jpeg";
                     }
+                }
 
-                    // Too small image may has issue, delete it
-                    if (imageBlob.StreamWriteSizeInBytes < MinimumImageSizeInBytes)
-                    {
-                        imageBlob.Delete();
-                        return string.Empty;
-                    }
+                // Too small image may has issue, delete it
+                if (imageBlob.StreamWriteSizeInBytes < MinimumImageSizeInBytes)
+                {
+                    imageBlob.Delete();
+                    return string.Empty;
                 }
 
                 return Path.Combine(StorageModel.GetBlobEndPoint(), StorageModel.ImageContainerName, decodedImageUrl);
