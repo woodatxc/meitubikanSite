@@ -22,6 +22,14 @@ namespace meitubikanSite.Models
         public static readonly string ApkContainerName = "app";
         public static readonly string ApkFileName = "meitubikan.apk";
 
+        // ** Apk channel info **
+        public static readonly string UCWebResultPageChannel = "ucresultpage";
+        public static readonly string UCWebResultPageApkFileName = "meitubikan_ucwebresult.apk";
+        public static readonly string UCWebDetailPageChannel = "ucdetailpage";
+        public static readonly string UCWebDetailPageApkFileName = "meitubikan_ucwebdetail.apk";
+        public static readonly string UCWebLandingPageChannel = "uclandingpage";
+        public static readonly string UCWebLandingPageApkFileName = "meitubikan_ucweblanding.apk";
+
         // ** User Model **
         public static readonly string UserActionTableName = "UserAction";
         public static readonly string ImageStatsTableName = "ImageStats";

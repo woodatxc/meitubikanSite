@@ -60,6 +60,36 @@ namespace meitubikanSite.Models
                             .DownloadToStream(ms);
             return ms;
         }
+
+        // Get apk from blob per channel
+        public MemoryStream GetApkFromBlobPerChannel(String channel)
+        {
+            MemoryStream ms = new MemoryStream();
+            if (string.Equals(channel, StorageModel.UCWebDetailPageChannel, StringComparison.OrdinalIgnoreCase))
+            {
+                StorageModel.GetBlobContainer(StorageModel.ApkContainerName)
+                            .GetBlockBlobReference(StorageModel.UCWebDetailPageApkFileName)
+                            .DownloadToStream(ms);
+            } 
+            else if (string.Equals(channel, StorageModel.UCWebResultPageChannel, StringComparison.OrdinalIgnoreCase))
+            {
+                StorageModel.GetBlobContainer(StorageModel.ApkContainerName)
+                            .GetBlockBlobReference(StorageModel.UCWebResultPageApkFileName)
+                            .DownloadToStream(ms);
+            }
+            else if (string.Equals(channel, StorageModel.UCWebLandingPageChannel, StringComparison.OrdinalIgnoreCase))
+            {
+                StorageModel.GetBlobContainer(StorageModel.ApkContainerName)
+                            .GetBlockBlobReference(StorageModel.UCWebLandingPageApkFileName)
+                            .DownloadToStream(ms);
+            } else {
+                StorageModel.GetBlobContainer(StorageModel.ApkContainerName)
+                            .GetBlockBlobReference(StorageModel.ApkFileName)
+                            .DownloadToStream(ms);
+            }
+            
+            return ms;
+        }
         
         // *** Basic storage operations ***
         // Select
