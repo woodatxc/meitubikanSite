@@ -39,6 +39,7 @@ namespace meitubikanSite.Controllers
                 string category = StorageModel.UrlDecode(entity.PartitionKey);
                 string subCategory = StorageModel.UrlDecode(entity.RowKey);
                 string query = StorageModel.UrlDecode(entity.Query);
+                string imgUrl = StorageModel.UrlDecode(entity.ImgUrl);
                 int position = entity.Position;
                 CategoryItem item = null;
                 for (int j = 0; j < itemList.Count; j++)
@@ -60,6 +61,7 @@ namespace meitubikanSite.Controllers
                 {
                     item.Name = category;
                     item.Query = query;
+                    item.ImgUrl = imgUrl;
                     item.Pos = position;
                 }
                 // Sub setting
@@ -72,6 +74,7 @@ namespace meitubikanSite.Controllers
                     SubCategoryItem subItem = new SubCategoryItem();
                     subItem.SubName = subCategory;
                     subItem.SubQuery = query;
+                    subItem.SubImgUrl = imgUrl;
                     subItem.SubPos = position;
                     item.Children.Add(subItem);
                 }
@@ -100,12 +103,14 @@ namespace meitubikanSite.Controllers
             string subcategory = ControllerHelper.NormalizeString(string.IsNullOrWhiteSpace(Request["subcategory"]) ? string.Empty : Request["subcategory"]);
             string query = ControllerHelper.NormalizeString(string.IsNullOrWhiteSpace(Request["query"]) ? string.Empty : Request["query"]);
             int position = int.Parse(ControllerHelper.NormalizeString(string.IsNullOrWhiteSpace(Request["position"]) ? "0" : Request["position"]));
+            string imgUrl = ControllerHelper.NormalizeString(string.IsNullOrWhiteSpace(Request["imgurl"]) ? string.Empty : Request["imgurl"]);
 
             CategoryEntity entity = new CategoryEntity();
             entity.PartitionKey = StorageModel.UrlEncode(category);
             entity.RowKey = StorageModel.UrlEncode(subcategory);
             entity.Query = StorageModel.UrlEncode(query);
             entity.Position = position;
+            entity.ImgUrl = imgUrl;
 
             SearchModelInstance.SaveSearchCategory(entity);
         }
@@ -424,6 +429,7 @@ namespace meitubikanSite.Controllers
             public string Name { get; set; }
             public string Query { get; set; }
             public int Pos { get; set; }
+            public string ImgUrl { get; set; }
             public List<SubCategoryItem> Children { get; set; }
         }
 
@@ -432,6 +438,7 @@ namespace meitubikanSite.Controllers
             public string SubName { get; set; }
             public string SubQuery { get; set; }
             public int SubPos { get; set; }
+            public string SubImgUrl { get; set; }
         }
     }
 }

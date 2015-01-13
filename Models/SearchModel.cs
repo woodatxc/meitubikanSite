@@ -273,5 +273,6 @@ namespace meitubikanSite.Models
 
         public string Query { get; set; }
         public int Position { get; set; }
+        public string ImgUrl { get; set; }
     }
 }
