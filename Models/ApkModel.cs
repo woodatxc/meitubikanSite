@@ -35,6 +35,28 @@ namespace meitubikanSite.Models
             }
         }
 
+        // Get download for specific source per time
+        public long GetTotalDownloadOnTime(string source, string time)
+        {
+            if (string.IsNullOrEmpty(source) || string.IsNullOrEmpty(time))
+            {
+                return 0;
+            }
+
+            List<ApkDownloadEntity> apkDownloadList = GetApkDownloadEntityByPartition(source);
+
+            long count = 0;
+            foreach(var i in apkDownloadList)
+            {
+                if (i.RowKey.Contains(time))
+                {
+                    count++;
+                }
+            }
+
+            return count;
+        }
+
         // Get total download for specific source
         public long GetTotalDownload(string source)
         {
