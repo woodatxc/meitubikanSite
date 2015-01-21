@@ -153,6 +153,20 @@ namespace meitubikanSite.Controllers
             return View();
         }
 
+        public JsonResult ImageSearchRawJson()
+        {
+            string query = ControllerHelper.NormalizeString(string.IsNullOrWhiteSpace(Request["query"]) ? string.Empty : Request["query"]);
+            int page = int.Parse(ControllerHelper.NormalizeString(string.IsNullOrWhiteSpace(Request["page"]) ? "0" : Request["page"]));
+            string network = ControllerHelper.NormalizeString(string.IsNullOrWhiteSpace(Request["network"]) ? string.Empty : Request["network"]);
+
+            string baseUrl = "http://www.bing.com/images/async?view=detail&q=" + query + "";
+            string url = baseUrl + "&count=" + EachStepCount + "&first=" + page * EachStepCount;
+
+            string json = ControllerHelper.CrawlRawJson(url, "utf-8");
+            
+            return this.Json(json, JsonRequestBehavior.AllowGet);
+        }
+
         public ActionResult GetImage()
         {
             // Require encoded with HttpUtility.UrlEncode
